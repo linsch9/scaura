@@ -6,8 +6,7 @@
     "node": ">=16.0.0"
   },
   "scripts": {
-    "postinstall": "npx puppeteer browsers install chrome && node install-chrome.js",
-    "install-chrome": "node install-chrome.js"
+    "postinstall": "npx puppeteer browsers install chrome && node install-chrome.js"
   },
   "keywords": [],
   "author": "",
