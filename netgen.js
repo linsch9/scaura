@@ -1,3 +1,5 @@
+// netgen.js
+
 const puppeteer = require('puppeteer');
 const fs = require('fs');
 const path = require('path');
@@ -78,10 +80,7 @@ async function scrapeFollowings(userId, page, url, fullScroll = false, timeout =
 }
 
 async function getFullNetwork(discordUsername, soundcloudUsername, userId) {
-    const browser = await puppeteer.launch({
-        args: ['--no-sandbox', '--disable-setuid-sandbox'],
-        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/google-chrome-stable',
-    });
+    const browser = await puppeteer.launch({ headless: true });
     const mainPage = await browser.newPage();
     const userUrl = `https://soundcloud.com/${soundcloudUsername}/following`;
     const { mainProfile, followings: followings1 } = await scrapeFollowings(userId, mainPage, userUrl, true);
