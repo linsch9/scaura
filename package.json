@@ -5,6 +5,11 @@
   "engines": {
     "node": ">=16.0.0"
   },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "postinstall": "NODE_ENV=production npm run install-chrome",
+    "install-chrome": "node ./install-chrome.js"
+  },
   "keywords": [],
   "author": "",
   "license": "ISC",
@@ -21,17 +26,12 @@
     "passport": "^0.7.0",
     "passport-discord": "^0.1.4",
     "path": "^0.12.7",
-    "puppeteer": "^10.0.0",
+    "puppeteer": "^23.6.0",
     "redis": "^4.7.0",
     "soundcloud-downloader": "^1.0.0",
     "soundcloud-scraper": "^5.0.3",
     "uuid": "^10.0.0",
     "ws": "^8.18.0",
     "node-fetch": "^3.0.0"
-  },
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "postinstall": "npm run install-chrome",
-    "install-chrome": "NODE_ENV=production node -e \"require('puppeteer').install()\""
   }
 }
