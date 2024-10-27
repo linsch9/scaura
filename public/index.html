@@ -3,119 +3,97 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Your SoundCloud Network</title>
+    <title>SC Network</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://d3js.org/d3.v7.min.js"></script>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            overflow: hidden;
-        }
-
-        .profile {
-            text-align: center;
-            display: inline-block;
-            margin: 10px;
-        }
-
-        .profile img {
-            border-radius: 50%;
-        }
-
-        .link {
-            stroke: #999;
-            stroke-opacity: 0.6;
-        }
-
-        .node text {
-            pointer-events: none;
-            font-size: 12px;
-        }
-
-        #network {
-            width: 100%;
-            height: 100vh;
-        }
-
-        #progress {
+        /* Styles für den Link in der Ecke */
+        #corner-text {
             position: fixed;
-            bottom: 0;
-            background: #f0f0f0;
-            width: 100%;
-            padding: 10px;
-            box-shadow: 0 -2px 5px rgba(0,0,0,0.1);
-            z-index: 1000;
-        }
-
-        #recommendation {
-            position: fixed;
-            top: 10px;
+            bottom: 10px;
             right: 10px;
-            background: rgba(0, 0, 0, 0.7);
-            color: #fff;
-            font-size: 16px;
-            padding: 10px;
-            border-radius: 4px;
-            display: flex;
-            align-items: center;
-            cursor: pointer;
-            z-index: 1001;
+            color: #ffffff;
+            font-size: 0.8rem;
         }
 
-        #recommendation img {
-            border-radius: 50%;
-            margin-right: 10px;
-            width: 50px;
-            height: 50px;
+        #corner-text a {
+            color: #ffffff;
+            text-decoration: none;
         }
 
-        #recommendation span {
-            font-size: 14px;
-        }
-
-        .hidden {
-            display: none;
+        #corner-text a:hover {
+            text-decoration: underline;
         }
     </style>
-    <script src="https://d3js.org/d3.v7.min.js"></script>
 </head>
 <body>
-<h1>Your SoundCloud Network</h1>
-<div id="network"></div>
-<div id="progress">
-    <p id="progress-text">Scraping progress: <span id="progress-percentage">0%</span></p>
+<div id="network-container">
+    <h1> </h1>
+    <div id="network"></div>
 </div>
 <div id="recommendation" class="hidden">
     <img id="recommendation-img" src="" alt="Profile Image">
     <span id="recommendation-text">Profile you should check out: </span>
 </div>
 
+<!-- Text in der unteren rechten Ecke -->
+<div id="corner-text">
+    <a href="https://soundcloud.com/ferlite" target="_blank">SCAURA by @ferlite</a>
+</div>
+
 <script>
-    let currentData = { mainProfile: null, followings1: [], followings2: [] }; // Data cache
+    let nodes = [];
+    let links = [];
+    let svg, container, linkGroup, nodeGroup, simulation;
+    let uniqueNodes = {};
+    let lastNetworkData = '';
+    let recommendationInterval;
+
+    async function checkNetworkFile(username) {
+        const response = await fetch(`/networks/${username}-network.json`);
+        if (!response.ok) {
+            throw new Error('Network file not found');
+        }
+        return await response.json();
+    }
 
     fetch('/profile').then(response => response.json())
         .then(profile => {
             const username = profile.username;
-
             const socket = new WebSocket(`ws://${window.location.host}`);
 
             socket.onopen = () => {
-                fetch(`networks/${username}-network.json`)
-                    .then(response => response.json())
-                    .then(initialData => {
-                        currentData = initialData;
-                        updateGraph(currentData);
+                console.log('WebSocket connection opened');
+                checkNetworkFile(username)
+                    .then(newData => {
+                        const newDataString = JSON.stringify(newData);
+                        if (newDataString !== lastNetworkData) {
+                            lastNetworkData = newDataString;
+                            updateGraph(newData);
+                        }
                     })
-                    .catch(error => console.error('Error loading initial network data:', error));
+                    .catch(error => console.error('Error checking network file:', error));
+
+                setInterval(() => {
+                    checkNetworkFile(username)
+                        .then(newData => {
+                            const newDataString = JSON.stringify(newData);
+                            if (newDataString !== lastNetworkData) {
+                                lastNetworkData = newDataString;
+                                updateGraph(newData);
+                            }
+                        })
+                        .catch(error => console.error('Error checking network file:', error));
+                }, 5000);
             };
 
             socket.onmessage = event => {
-                const data = JSON.parse(event.data);
-                if (data.progress !== undefined) {
-                    document.getElementById('progress-percentage').innerText = `${data.progress}%`;
-                }
-                if (data.data) {
-                    currentData.followings2 = data.data.followings2;
-                    updateGraph(currentData);
+                const message = JSON.parse(event.data);
+                console.log('Received WebSocket message:', message);
+
+                if (message.data) {
+                    updateGraph(message.data);
+                    lastNetworkData = JSON.stringify(message.data);
                 }
             };
 
@@ -126,21 +104,53 @@
             socket.onclose = () => {
                 console.log('WebSocket connection closed');
             };
+        })
+        .catch(error => {
+            console.error('Error fetching profile:', error);
         });
 
-    function updateGraph(data) {
-        const { mainProfile, followings1, followings2 } = data;
-
+    function initializeGraph() {
         const networkDiv = document.getElementById('network');
-        d3.select(networkDiv).select('svg').remove(); // Clear existing graph
+        if (!svg) {
+            svg = d3.select(networkDiv).append('svg')
+                .attr('width', window.innerWidth)
+                .attr('height', window.innerHeight);
 
-        // Alle Knoten in ein Set sammeln, um Duplikate zu vermeiden
-        const uniqueNodes = {};
-        const links = [];
+            container = svg.append('g');
+            linkGroup = container.append('g').attr('class', 'links');
+            nodeGroup = container.append('g').attr('class', 'nodes');
+
+            svg.call(d3.zoom().on('zoom', (event) => {
+                container.attr('transform', event.transform);
+                toggleTextVisibility(event.transform.k);
+            }));
+
+            simulation = d3.forceSimulation()
+                .force('link', d3.forceLink().id(d => d.id).distance(100))
+                .force('charge', d3.forceManyBody().strength(-800))
+                .force('center', d3.forceCenter(window.innerWidth / 2, window.innerHeight / 2))
+                .nodes(nodes)
+                .on('tick', ticked);
+
+            simulation.force('link').links(links);
+        }
+    }
+
+    function updateGraph(data) {
+        initializeGraph();
+
+        const mainProfile = data.mainProfile;
+        const followings1 = data.followings1;
+        const followings2 = data.followings2;
+
+        nodes = [];
+        links = [];
+        uniqueNodes = {};
 
         function addNode(node) {
             if (!uniqueNodes[node.id]) {
                 uniqueNodes[node.id] = { ...node, connections: 0 };
+                nodes.push(uniqueNodes[node.id]);
             }
         }
 
@@ -152,17 +162,13 @@
             }
         }
 
-        // Hauptprofil hinzufügen
-        if(mainProfile){
-            addNode({
-                id: mainProfile.username,
-                group: 0,
-                img: mainProfile.profileImage,
-                profileLink: mainProfile.profileLink
-            });
-        }
+        addNode({
+            id: mainProfile.username,
+            group: 0,
+            img: mainProfile.profileImage,
+            profileLink: mainProfile.profileLink
+        });
 
-        // Erste Schicht von Followings hinzufügen
         followings1.forEach(following => {
             addNode({
                 id: following.username,
@@ -173,7 +179,6 @@
             addLink(mainProfile.username, following.username);
         });
 
-        // Zweite Schicht von Followings hinzufügen
         followings2.forEach(secondLayer => {
             secondLayer.followings.forEach(following => {
                 addNode({
@@ -186,105 +191,97 @@
             });
         });
 
-        const nodes = Object.values(uniqueNodes);
+        restart();
+        updateRecommendation();
+        startRecommendationInterval();
+    }
 
-        const width = window.innerWidth;
-        const height = window.innerHeight;
-        const svg = d3.select(networkDiv).append('svg')
-            .attr('width', width)
-            .attr('height', height);
-
-        const container = svg.append('g');
-
-        const linkGroup = container.append('g').attr('class', 'links');
-        const nodeGroup = container.append('g').attr('class', 'nodes');
-
-        svg.call(d3.zoom().on('zoom', (event) => {
-            container.attr('transform', event.transform);
-            toggleTextVisibility(event.transform.k);
-        }));
-
-        const link = linkGroup.selectAll('line')
-            .data(links)
-            .enter().append('line')
-            .attr('class', 'link');
-
+    function restart() {
         const node = nodeGroup.selectAll('g')
-            .data(nodes)
-            .enter().append('g')
-            .attr('class', 'node');
+            .data(nodes, d => d.id);
 
-        node.append('image')
+        const nodeEnter = node.enter().append('g')
+            .attr('class', 'node')
+            .on('click', (event, d) => {
+                window.open(d.profileLink, '_blank');
+            });
+
+        nodeEnter.append('image')
             .attr('xlink:href', d => d.img)
-            .attr('x', d => -getNodeSize(d) / 2)
-            .attr('y', d => -getNodeSize(d) / 2)
-            .attr('width', d => getNodeSize(d))
-            .attr('height', d => getNodeSize(d))
-            .attr('clip-path', d => `circle(${getNodeSize(d) / 2}px at center)`);
+            .attr('x', d => -getNodeRadius(d) / 2)
+            .attr('y', d => -getNodeRadius(d) / 2)
+            .attr('width', d => getNodeRadius(d))
+            .attr('height', d => getNodeRadius(d))
+            .attr('clip-path', d => `circle(${getNodeRadius(d) / 2}px at center)`);
 
-        node.append('text')
-            .attr('dy', d => getNodeSize(d) / 2 + 10)
+        nodeEnter.append('text')
+            .attr('dy', d => getNodeRadius(d) / 2 + 15)
             .attr('text-anchor', 'middle')
+            .attr('fill', '#ffffff')  // Weißer Text auf Profilen
             .text(d => d.id);
 
-        node.on('click', (event, d) => {
-            window.open(d.profileLink, '_blank');
-        });
+        node.merge(nodeEnter);
 
-        const simulation = d3.forceSimulation()
-            .force('link', d3.forceLink().id(d => d.id))
-            .force('charge', d3.forceManyBody().strength(-300))
-            .force('center', d3.forceCenter(width / 2, height / 2));
+        const link = linkGroup.selectAll('line')
+            .data(links);
 
-        simulation
-            .nodes(nodes)
-            .on('tick', ticked);
+        link.enter().append('line')
+            .attr('class', 'link')
+            .merge(link);
 
-        simulation.force('link')
-            .links(links);
+        link.exit().remove();
+        node.exit().remove();
 
-        function ticked() {
-            link
-                .attr('x1', d => d.source.x)
-                .attr('y1', d => d.source.y)
-                .attr('x2', d => d.target.x)
-                .attr('y2', d => d.target.y);
+        simulation.nodes(nodes);
+        simulation.force('link').links(links);
+        simulation.alpha(1).restart();
+    }
 
-            node
-                .attr('transform', d => `translate(${d.x},${d.y})`);
+    function getNodeRadius(node) {
+        const baseSize = 40;
+        return baseSize + (node.connections * 2);
+    }
+
+    function updateRecommendation() {
+        const profilesWithConnections = nodes.filter(node => node.connections > 0);
+        if (profilesWithConnections.length > 0) {
+            const recommendedProfile = profilesWithConnections[Math.floor(Math.random() * profilesWithConnections.length)];
+            const recommendationElement = document.getElementById('recommendation');
+            recommendationElement.style.opacity = 0; // Start with fading out
+
+            setTimeout(() => {
+                document.getElementById('recommendation-img').src = recommendedProfile.img;
+                document.getElementById('recommendation-text').innerText = `Profile you should check out: ${recommendedProfile.id}`;
+                document.getElementById('recommendation').onclick = () => window.open(recommendedProfile.profileLink, '_blank');
+                recommendationElement.classList.remove('hidden');
+                recommendationElement.style.opacity = 1; // Fade in with updated profile
+            }, 1000);
         }
+    }
 
-        function toggleTextVisibility(zoomLevel) {
-            const textElements = node.selectAll('text');
-            if (zoomLevel < 0.5) {
-                textElements.attr('display', 'none');
-            } else {
-                textElements.attr('display', 'block');
-            }
+    function startRecommendationInterval() {
+        if (recommendationInterval) {
+            clearInterval(recommendationInterval);
         }
+        recommendationInterval = setInterval(updateRecommendation, 10000);
+    }
 
-        function getNodeSize(node) {
-            const baseSize = 20;
-            const maxSize = 60;
-            const connectionsFactor = 10;
-            return Math.min(baseSize + node.connections * connectionsFactor, maxSize);
-        }
+    function ticked() {
+        linkGroup.selectAll('line')
+            .attr('x1', d => d.source.x)
+            .attr('y1', d => d.source.y)
+            .attr('x2', d => d.target.x)
+            .attr('y2', d => d.target.y);
 
-        const recommendedNodes = nodes.filter(node => node.group === 2).sort((a, b) => b.connections - a.connections);
-        const recommendedProfile = recommendedNodes.length > 0 ? recommendedNodes[0] : null;
+        nodeGroup.selectAll('g')
+            .attr('transform', d => `translate(${d.x},${d.y})`);
+    }
 
-        if (recommendedProfile) {
-            const recommendationDiv = document.getElementById('recommendation');
-            const recommendationImg = document.getElementById('recommendation-img');
-            const recommendationText = document.getElementById('recommendation-text');
-
-            recommendationDiv.classList.remove('hidden');
-            recommendationImg.src = recommendedProfile.img;
-            recommendationText.textContent = `Profile you should check out: ${recommendedProfile.id}`;
-
-            recommendationDiv.onclick = function() {
-                window.open(recommendedProfile.profileLink, '_blank');
-            };
+    function toggleTextVisibility(scale) {
+        if (scale < 0.5) {
+            nodeGroup.selectAll('text').style('display', 'none');
+        } else {
+            nodeGroup.selectAll('text').style('display', 'block');
         }
     }
 </script>
