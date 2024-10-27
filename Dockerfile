@@ -1,15 +1,12 @@
 # Verwende das offizielle Basisbild von Puppeteer
 FROM ghcr.io/puppeteer/puppeteer:23.6.0
 
-# Installiere notwendige Tools und Google Chrome in separaten Schritten und prüfe auf Fehler
-RUN apt-get update && \
-    apt-get install -y wget gnupg --no-install-recommends && \
-    wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | apt-key add -
-RUN echo "deb [arch=amd64] https://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list && \
-    apt-get update && \
-    apt-get install -y google-chrome-stable --no-install-recommends
-RUN apt-get clean && \
-    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+# Setze den Nicht-interaktiven Modus für apt-get
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Füge das Google Chrome Repository hinzu und installiere Chrome
+RUN sh -c 'echo "deb [arch=amd64] https://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list'
+RUN apt-get update && apt-get install -y google-chrome-stable --no-install-recommends && apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 # Setze Umgebungsvariablen für Puppeteer
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
@@ -20,6 +17,7 @@ WORKDIR /usr/src/app
 
 # Kopiere die package.json und package-lock.json Dateien
 COPY package*.json ./
+
 # Installiere Node.js Abhängigkeiten
 RUN npm ci
 
@@ -27,4 +25,4 @@ RUN npm ci
 COPY . .
 
 # Startkommando setzen
-CMD [ "node", "server.js" ]
+CMD ["node", "server.js"]
