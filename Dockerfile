@@ -1,14 +1,14 @@
 # Verwende das offizielle Basisbild von Puppeteer
 FROM ghcr.io/puppeteer/puppeteer:23.6.0
 
-# Installiere notwendige Tools und Google Chrome
+# Installiere notwendige Tools und Google Chrome in separaten Schritten und prüfe auf Fehler
 RUN apt-get update && \
     apt-get install -y wget gnupg --no-install-recommends && \
-    wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | apt-key add - && \
-    sh -c 'echo "deb [arch=amd64] https://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list' && \
+    wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | apt-key add -
+RUN echo "deb [arch=amd64] https://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list && \
     apt-get update && \
-    apt-get install -y google-chrome-stable --no-install-recommends && \
-    apt-get clean && \
+    apt-get install -y google-chrome-stable --no-install-recommends
+RUN apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 # Setze Umgebungsvariablen für Puppeteer
