@@ -7,7 +7,6 @@
     <link rel="stylesheet" href="styles.css">
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <style>
-        /* Styles für den Link in der Ecke */
         #corner-text {
             position: fixed;
             bottom: 10px;
@@ -36,7 +35,6 @@
     <span id="recommendation-text">Profile you should check out: </span>
 </div>
 
-<!-- Text in der unteren rechten Ecke -->
 <div id="corner-text">
     <a href="https://soundcloud.com/ferlite" target="_blank">SCAURA by @ferlite</a>
 </div>
@@ -60,7 +58,7 @@
     fetch('/profile').then(response => response.json())
         .then(profile => {
             const username = profile.username;
-            const socket = new WebSocket(`wss://${window.location.host}`);
+            const socket = new WebSocket(`ws://${window.location.host}`);
 
             socket.onopen = () => {
                 console.log('WebSocket connection opened');
@@ -217,7 +215,7 @@
         nodeEnter.append('text')
             .attr('dy', d => getNodeRadius(d) / 2 + 15)
             .attr('text-anchor', 'middle')
-            .attr('fill', '#ffffff')  // Weißer Text auf Profilen
+            .attr('fill', '#ffffff')
             .text(d => d.id);
 
         node.merge(nodeEnter);
@@ -238,8 +236,11 @@
     }
 
     function getNodeRadius(node) {
-        const baseSize = 40;
-        return baseSize + (node.connections * 2);
+        const baseSize = 30;
+        const maxSize = 250;
+        const maxConnections = d3.max(nodes, d => d.connections);
+        const radius = baseSize + (maxSize - baseSize) * (node.connections / maxConnections);
+        return Math.max(radius, baseSize); // ensure minimum size
     }
 
     function updateRecommendation() {
