@@ -1,5 +1,4 @@
 const puppeteer = require('puppeteer');
-const chrome = require('chrome-aws-lambda');
 const fs = require('fs');
 const path = require('path');
 
@@ -79,21 +78,14 @@ async function scrapeFollowings(userId, page, url, fullScroll = false, timeout =
 }
 
 async function getFullNetwork(discordUsername, soundcloudUsername, userId) {
-    let options = {};
-    if (process.env.AWS_LAMBDA_FUNCTION_VERSION) {
-        options = {
-            args: [...chrome.args, '--hide-scrollbars', '--disable-web-security'],
-            defaultViewport: chrome.defaultViewport,
-            executablePath: await chrome.executablePath,
-            headless: true,
-            ignoreHTTPSErrors: true,
-        };
-    } else {
-        options = {
-            headless: true,
-            args: ['--no-sandbox', '--disable-setuid-sandbox']
-        };
-    }
+    const isLambda = process.env.AWS_LAMBDA_FUNCTION_VERSION;
+    // Set options depending on the environment
+    const options = {
+        headless: true,
+        args: isLambda ? ['--no-sandbox', '--disable-setuid-sandbox', '--hide-scrollbars', '--disable-web-security'] : ['--no-sandbox', '--disable-setuid-sandbox'],
+        executablePath: isLambda ? process.env.CHROME_EXECUTABLE_PATH : undefined,
+        ignoreHTTPSErrors: true
+    };
 
     const browser = await puppeteer.launch(options);
     const mainPage = await browser.newPage();
