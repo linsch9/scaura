@@ -2,9 +2,8 @@
   "name": "scaura",
   "version": "1.0.0",
   "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "postinstall": "npx puppeteer install chrome"
+  "engines": {
+    "node": ">=16.0.0"
   },
   "keywords": [],
   "author": "",
@@ -13,7 +12,7 @@
   "dependencies": {
     "connect-redis": "^7.1.1",
     "cookie-parser": "^1.4.7",
-    "chrome-aws-lambda": "^6",
+    "chrome-aws-lambda": "^10.0.0",
     "express": "^4.21.1",
     "express-session": "^1.18.1",
     "express-ws": "^5.0.2",
@@ -22,7 +21,7 @@
     "passport": "^0.7.0",
     "passport-discord": "^0.1.4",
     "path": "^0.12.7",
-    "puppeteer-core": "^6",
+    "puppeteer": "^10.0.0",
     "redis": "^4.7.0",
     "soundcloud-downloader": "^1.0.0",
     "soundcloud-scraper": "^5.0.3",
@@ -30,7 +29,9 @@
     "ws": "^8.18.0",
     "node-fetch": "^3.0.0"
   },
-  "devDependencies": {
-    "puppeteer": "^23.6.0"
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "postinstall": "npm run install-chrome",
+    "install-chrome": "NODE_ENV=production node -e \"require('puppeteer').install()\""
   }
 }
