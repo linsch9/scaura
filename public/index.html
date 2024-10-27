@@ -58,7 +58,8 @@
     fetch('/profile').then(response => response.json())
         .then(profile => {
             const username = profile.username;
-            const socket = new WebSocket(`ws://${window.location.host}`);
+            const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+            const socket = new WebSocket(`${protocol}://${window.location.host}`);
 
             socket.onopen = () => {
                 console.log('WebSocket connection opened');
