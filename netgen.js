@@ -1,6 +1,5 @@
-// netgen.js
-
-const puppeteer = require('puppeteer');
+const puppeteer = require('puppeteer-core');
+const chrome = require('chrome-aws-lambda');
 const fs = require('fs');
 const path = require('path');
 
@@ -80,10 +79,23 @@ async function scrapeFollowings(userId, page, url, fullScroll = false, timeout =
 }
 
 async function getFullNetwork(discordUsername, soundcloudUsername, userId) {
-    const browser = await puppeteer.launch({
-        headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox']
-    });
+    let options = {};
+    if (process.env.AWS_LAMBDA_FUNCTION_VERSION) {
+        options = {
+            args: [...chrome.args, '--hide-scrollbars', '--disable-web-security'],
+            defaultViewport: chrome.defaultViewport,
+            executablePath: await chrome.executablePath,
+            headless: true,
+            ignoreHTTPSErrors: true,
+        };
+    } else {
+        options = {
+            headless: true,
+            args: ['--no-sandbox', '--disable-setuid-sandbox']
+        };
+    }
+
+    const browser = await puppeteer.launch(options);
     const mainPage = await browser.newPage();
     const userUrl = `https://soundcloud.com/${soundcloudUsername}/following`;
     const { mainProfile, followings: followings1 } = await scrapeFollowings(userId, mainPage, userUrl, true);
@@ -127,7 +139,6 @@ async function getFullNetwork(discordUsername, soundcloudUsername, userId) {
     }
 
     await processQueue();
-
     const result = { mainProfile, followings1, followings2 };
     fs.writeFileSync(networkFilePath, JSON.stringify(result, null, 2));
 
