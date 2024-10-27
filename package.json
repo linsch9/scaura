@@ -1,0 +1,31 @@
+{
+  "name": "scaura",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "connect-redis": "^7.1.1",
+    "cookie-parser": "^1.4.7",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.1",
+    "express-session": "^1.18.1",
+    "express-ws": "^5.0.2",
+    "fs": "^0.0.1-security",
+    "memorystore": "^1.6.7",
+    "passport": "^0.7.0",
+    "passport-discord": "^0.1.4",
+    "path": "^0.12.7",
+    "puppeteer": "^23.6.0",
+    "redis": "^4.7.0",
+    "soundcloud-downloader": "^1.0.0",
+    "soundcloud-scraper": "^5.0.3",
+    "uuid": "^10.0.0",
+    "ws": "^8.18.0"
+  }
+}

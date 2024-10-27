@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Access SoundCloud Network</title>
+</head>
+<body>
+<h1>Access Your SoundCloud Network</h1>
+<div id="profile">
+  <p id="profile-info"></p>
+</div>
+<div id="input-area">
+  <label for="soundcloud-username">SoundCloud Benutzername:</label>
+  <input type="text" id="soundcloud-username" name="soundcloud-username">
+  <button onclick="generateNetwork()">Netzwerk generieren</button>
+</div>
+<div>
+  <button id="discord-auth-button" onclick="authenticateWithDiscord()">Mit Discord anmelden</button>
+</div>
+<script>
+  function authenticateWithDiscord() {
+    window.location.href = '/auth/discord';
+  }
+
+  function generateNetwork() {
+    const soundcloudUsername = document.getElementById('soundcloud-username').value;
+
+    fetch('/profile').then(response => response.json())
+            .then(profile => {
+              const discordUsername = profile.username;
+
+              const socket = new WebSocket(`ws://${window.location.host}`);
+
+              socket.onopen = () => {
+                socket.send(JSON.stringify({ soundcloudUsername, discordUsername }));
+                window.location.href = '/index.html';
+              };
+
+              socket.onerror = error => {
+                console.error('WebSocket error:', error);
+              };
+
+              socket.onclose = () => {
+                console.log('WebSocket connection closed');
+              };
+            }).catch(error => {
+      console.error('Error fetching profile:', error);
+    });
+  }
+
+  fetch('/profile').then(response => response.json())
+          .then(profile => {
+            const profileDiv = document.getElementById('profile-info');
+            if (profile.username) {
+              profileDiv.textContent = `Willkommen, ${profile.username}`;
+              document.getElementById('discord-auth-button').style.display = 'none';
+            } else {
+              profileDiv.textContent = 'Bitte loggen Sie sich zuerst ein';
+            }
+          }).catch(error => {
+    console.error('Error fetching profile:', error);
+  });
+</script>
+</body>
+</html>

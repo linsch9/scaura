@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Your SoundCloud Network</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        .profile {
+            text-align: center;
+            display: inline-block;
+            margin: 10px;
+        }
+
+        .profile img {
+            border-radius: 50%;
+        }
+
+        .link {
+            stroke: #999;
+            stroke-opacity: 0.6;
+        }
+
+        .node text {
+            pointer-events: none;
+            font-size: 12px;
+        }
+
+        #network {
+            width: 100%;
+            height: 100vh;
+        }
+
+        #progress {
+            position: fixed;
+            bottom: 0;
+            background: #f0f0f0;
+            width: 100%;
+            padding: 10px;
+            box-shadow: 0 -2px 5px rgba(0,0,0,0.1);
+            z-index: 1000;
+        }
+
+        #recommendation {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            color: #fff;
+            font-size: 16px;
+            padding: 10px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            z-index: 1001;
+        }
+
+        #recommendation img {
+            border-radius: 50%;
+            margin-right: 10px;
+            width: 50px;
+            height: 50px;
+        }
+
+        #recommendation span {
+            font-size: 14px;
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+</head>
+<body>
+<h1>Your SoundCloud Network</h1>
+<div id="network"></div>
+<div id="progress">
+    <p id="progress-text">Scraping progress: <span id="progress-percentage">0%</span></p>
+</div>
+<div id="recommendation" class="hidden">
+    <img id="recommendation-img" src="" alt="Profile Image">
+    <span id="recommendation-text">Profile you should check out: </span>
+</div>
+
+<script>
+    let currentData = { mainProfile: null, followings1: [], followings2: [] }; // Data cache
+
+    fetch('/profile').then(response => response.json())
+        .then(profile => {
+            const username = profile.username;
+
+            const socket = new WebSocket(`ws://${window.location.host}`);
+
+            socket.onopen = () => {
+                fetch(`networks/${username}-network.json`)
+                    .then(response => response.json())
+                    .then(initialData => {
+                        currentData = initialData;
+                        updateGraph(currentData);
+                    })
+                    .catch(error => console.error('Error loading initial network data:', error));
+            };
+
+            socket.onmessage = event => {
+                const data = JSON.parse(event.data);
+                if (data.progress !== undefined) {
+                    document.getElementById('progress-percentage').innerText = `${data.progress}%`;
+                }
+                if (data.data) {
+                    currentData.followings2 = data.data.followings2;
+                    updateGraph(currentData);
+                }
+            };
+
+            socket.onerror = error => {
+                console.error('WebSocket error:', error);
+            };
+
+            socket.onclose = () => {
+                console.log('WebSocket connection closed');
+            };
+        });
+
+    function updateGraph(data) {
+        const { mainProfile, followings1, followings2 } = data;
+
+        const networkDiv = document.getElementById('network');
+        d3.select(networkDiv).select('svg').remove(); // Clear existing graph
+
+        // Alle Knoten in ein Set sammeln, um Duplikate zu vermeiden
+        const uniqueNodes = {};
+        const links = [];
+
+        function addNode(node) {
+            if (!uniqueNodes[node.id]) {
+                uniqueNodes[node.id] = { ...node, connections: 0 };
+            }
+        }
+
+        function addLink(source, target) {
+            links.push({ source, target });
+            if (uniqueNodes[source] && uniqueNodes[target]) {
+                uniqueNodes[source].connections++;
+                uniqueNodes[target].connections++;
+            }
+        }
+
+        // Hauptprofil hinzufügen
+        if(mainProfile){
+            addNode({
+                id: mainProfile.username,
+                group: 0,
+                img: mainProfile.profileImage,
+                profileLink: mainProfile.profileLink
+            });
+        }
+
+        // Erste Schicht von Followings hinzufügen
+        followings1.forEach(following => {
+            addNode({
+                id: following.username,
+                group: 1,
+                img: following.profileImage,
+                profileLink: following.profileLink
+            });
+            addLink(mainProfile.username, following.username);
+        });
+
+        // Zweite Schicht von Followings hinzufügen
+        followings2.forEach(secondLayer => {
+            secondLayer.followings.forEach(following => {
+                addNode({
+                    id: following.username,
+                    group: 2,
+                    img: following.profileImage,
+                    profileLink: following.profileLink
+                });
+                addLink(secondLayer.username, following.username);
+            });
+        });
+
+        const nodes = Object.values(uniqueNodes);
+
+        const width = window.innerWidth;
+        const height = window.innerHeight;
+        const svg = d3.select(networkDiv).append('svg')
+            .attr('width', width)
+            .attr('height', height);
+
+        const container = svg.append('g');
+
+        const linkGroup = container.append('g').attr('class', 'links');
+        const nodeGroup = container.append('g').attr('class', 'nodes');
+
+        svg.call(d3.zoom().on('zoom', (event) => {
+            container.attr('transform', event.transform);
+            toggleTextVisibility(event.transform.k);
+        }));
+
+        const link = linkGroup.selectAll('line')
+            .data(links)
+            .enter().append('line')
+            .attr('class', 'link');
+
+        const node = nodeGroup.selectAll('g')
+            .data(nodes)
+            .enter().append('g')
+            .attr('class', 'node');
+
+        node.append('image')
+            .attr('xlink:href', d => d.img)
+            .attr('x', d => -getNodeSize(d) / 2)
+            .attr('y', d => -getNodeSize(d) / 2)
+            .attr('width', d => getNodeSize(d))
+            .attr('height', d => getNodeSize(d))
+            .attr('clip-path', d => `circle(${getNodeSize(d) / 2}px at center)`);
+
+        node.append('text')
+            .attr('dy', d => getNodeSize(d) / 2 + 10)
+            .attr('text-anchor', 'middle')
+            .text(d => d.id);
+
+        node.on('click', (event, d) => {
+            window.open(d.profileLink, '_blank');
+        });
+
+        const simulation = d3.forceSimulation()
+            .force('link', d3.forceLink().id(d => d.id))
+            .force('charge', d3.forceManyBody().strength(-300))
+            .force('center', d3.forceCenter(width / 2, height / 2));
+
+        simulation
+            .nodes(nodes)
+            .on('tick', ticked);
+
+        simulation.force('link')
+            .links(links);
+
+        function ticked() {
+            link
+                .attr('x1', d => d.source.x)
+                .attr('y1', d => d.source.y)
+                .attr('x2', d => d.target.x)
+                .attr('y2', d => d.target.y);
+
+            node
+                .attr('transform', d => `translate(${d.x},${d.y})`);
+        }
+
+        function toggleTextVisibility(zoomLevel) {
+            const textElements = node.selectAll('text');
+            if (zoomLevel < 0.5) {
+                textElements.attr('display', 'none');
+            } else {
+                textElements.attr('display', 'block');
+            }
+        }
+
+        function getNodeSize(node) {
+            const baseSize = 20;
+            const maxSize = 60;
+            const connectionsFactor = 10;
+            return Math.min(baseSize + node.connections * connectionsFactor, maxSize);
+        }
+
+        const recommendedNodes = nodes.filter(node => node.group === 2).sort((a, b) => b.connections - a.connections);
+        const recommendedProfile = recommendedNodes.length > 0 ? recommendedNodes[0] : null;
+
+        if (recommendedProfile) {
+            const recommendationDiv = document.getElementById('recommendation');
+            const recommendationImg = document.getElementById('recommendation-img');
+            const recommendationText = document.getElementById('recommendation-text');
+
+            recommendationDiv.classList.remove('hidden');
+            recommendationImg.src = recommendedProfile.img;
+            recommendationText.textContent = `Profile you should check out: ${recommendedProfile.id}`;
+
+            recommendationDiv.onclick = function() {
+                window.open(recommendedProfile.profileLink, '_blank');
+            };
+        }
+    }
+</script>
+</body>
+</html>
