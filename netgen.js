@@ -79,11 +79,19 @@ async function scrapeFollowings(userId, page, url, fullScroll = false, timeout =
 
 async function getFullNetwork(discordUsername, soundcloudUsername, userId) {
     const isLambda = process.env.AWS_LAMBDA_FUNCTION_VERSION;
-    // Set options depending on the environment
+    const executablePath = isLambda ? (await require('chrome-aws-lambda')).executablePath : undefined;
+
     const options = {
         headless: true,
-        args: isLambda ? ['--no-sandbox', '--disable-setuid-sandbox', '--hide-scrollbars', '--disable-web-security'] : ['--no-sandbox', '--disable-setuid-sandbox'],
-        executablePath: isLambda ? process.env.CHROME_EXECUTABLE_PATH : undefined,
+        args: isLambda
+            ? [
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--hide-scrollbars',
+                '--disable-web-security'
+            ]
+            : ['--no-sandbox', '--disable-setuid-sandbox'],
+        executablePath,
         ignoreHTTPSErrors: true
     };
 
