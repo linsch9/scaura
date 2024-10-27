@@ -5,8 +5,7 @@ FROM ghcr.io/puppeteer/puppeteer:23.6.0
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Füge das Google Chrome Repository hinzu und installiere Chrome
-RUN sh -c 'echo "deb [arch=amd64] https://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list'
-RUN apt-get update && apt-get install -y google-chrome-stable --no-install-recommends && apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+RUN apt-get update && apt-get install -y google-chrome-stable
 
 # Setze Umgebungsvariablen für Puppeteer
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
