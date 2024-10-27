@@ -79,7 +79,7 @@ async function scrapeFollowings(userId, page, url, fullScroll = false, timeout =
 
 async function getFullNetwork(discordUsername, soundcloudUsername, userId) {
     const isLambda = process.env.AWS_LAMBDA_FUNCTION_VERSION;
-    const executablePath = isLambda ? (await require('chrome-aws-lambda')).executablePath : undefined;
+    const chromePath = await require('puppeteer').executablePath(); // Den Pfad zu Puppeteer's ausgeführtem Browser ermitteln
 
     const options = {
         headless: true,
@@ -91,7 +91,7 @@ async function getFullNetwork(discordUsername, soundcloudUsername, userId) {
                 '--disable-web-security'
             ]
             : ['--no-sandbox', '--disable-setuid-sandbox'],
-        executablePath,
+        executablePath: chromePath,
         ignoreHTTPSErrors: true
     };
 
