@@ -1,6 +1,7 @@
 # Use an official Node runtime as a parent image
 FROM node:16
 
+# Install dependencies
 RUN apt-get update && apt-get install -y \
     wget \
     ca-certificates \
@@ -13,7 +14,6 @@ RUN apt-get update && apt-get install -y \
     libasound2 \
     libpangocairo-1.0-0 \
     libatk1.0-0 \
-    libatk-bridge2.0-0 \
     libcups2 \
     libdrm2 \
     libxdamage1 \
@@ -33,12 +33,9 @@ RUN apt-get update && apt-get install -y \
     libxi6 \
     libxtst6 \
     libglib2.0-0 \
-    libnss3 \
+    libgtk-3-0 \
     libnss3-tools \
     libnspr4 \
-    libatk-bridge2.0-0 \
-    libgtk-3-0 \
-    libx11-dev \
     gtk2-engines-pixbuf \
     xdg-utils
 
