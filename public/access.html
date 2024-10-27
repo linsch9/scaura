@@ -4,19 +4,83 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Access SoundCloud Network</title>
+  <style>
+    body {
+      font-family: 'Roboto', sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+      height: 100vh;
+      margin: 0;
+      background-color: #090909;
+      color: #ffffff;
+      text-align: center;
+    }
+
+    h1 {
+      font-size: 2rem;
+      margin-bottom: 1rem;
+    }
+
+    #profile {
+      margin-bottom: 1rem;
+    }
+
+    #input-area, #profile, #discord-auth-button {
+      margin-bottom: 1rem;
+    }
+
+    label, input, button {
+      display: block;
+      margin: 0 auto;
+      margin-bottom: 0.5rem;
+    }
+
+    input {
+      padding: 0.5rem;
+      width: 100%;
+      max-width: 300px;
+      box-sizing: border-box;
+    }
+
+    button {
+      background-color: #661add;
+      color: #fff;
+      padding: 0.7rem 1.5rem;
+      border: none;
+      cursor: pointer;
+      text-transform: uppercase;
+      transition: background-color 0.3s ease;
+      width: 100%;
+      max-width: 300px;
+      box-sizing: border-box;
+    }
+
+    button:hover {
+      background-color: #ffffff;
+    }
+
+    button[onclick="authenticateWithDiscord()"] {
+      margin-top: 1rem;
+    }
+
+    #input-area {
+      display: none;
+    }
+  </style>
 </head>
 <body>
-<h1>Access Your SoundCloud Network</h1>
 <div id="profile">
   <p id="profile-info"></p>
 </div>
 <div id="input-area">
-  <label for="soundcloud-username">SoundCloud Benutzername:</label>
+  <label for="soundcloud-username">SoundCloud Username:</label>
   <input type="text" id="soundcloud-username" name="soundcloud-username">
-  <button onclick="generateNetwork()">Netzwerk generieren</button>
+  <button onclick="generateNetwork()">Generate Aura</button>
 </div>
 <div>
-  <button id="discord-auth-button" onclick="authenticateWithDiscord()">Mit Discord anmelden</button>
+  <button id="discord-auth-button" onclick="authenticateWithDiscord()">LOG IN WITH DISCORD</button>
 </div>
 <script>
   function authenticateWithDiscord() {
@@ -52,11 +116,13 @@
   fetch('/profile').then(response => response.json())
           .then(profile => {
             const profileDiv = document.getElementById('profile-info');
+            const discordAuthButton = document.getElementById('discord-auth-button');
             if (profile.username) {
-              profileDiv.textContent = `Willkommen, ${profile.username}`;
-              document.getElementById('discord-auth-button').style.display = 'none';
+              profileDiv.textContent = `Logged in as ${profile.username}`;
+              discordAuthButton.style.display = 'none';
+              document.getElementById('input-area').style.display = 'block';
             } else {
-              profileDiv.textContent = 'Bitte loggen Sie sich zuerst ein';
+              profileDiv.textContent = 'Please log in first';
             }
           }).catch(error => {
     console.error('Error fetching profile:', error);
